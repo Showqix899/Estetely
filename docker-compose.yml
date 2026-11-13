@@ -1,0 +1,62 @@
+# Shared settings used by web, celery_worker and celery_beat
+x-app: &app
+  build: .
+  image: estately_backend
+  env_file: .env
+  volumes:
+    - .:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:16-alpine
+    container_name: estately_db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis: used as the Celery broker (db 0) and the cache (db 1)
+  redis:
+    image: redis:7-alpine
+    container_name: estately_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # The Django API server
+  web:
+    <<: *app
+    container_name: estately_web
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+
+  # Celery worker: runs background tasks (sending emails, ...)
+  celery_worker:
+    <<: *app
+    container_name: estately_celery_worker
+    command: celery -A core worker -l info
+
+  # Celery beat: runs scheduled tasks (closing expired leases every night)
+  celery_beat:
+    <<: *app
+    container_name: estately_celery_beat
+    command: celery -A core beat -l info
+
+volumes:
+  postgres_data:
