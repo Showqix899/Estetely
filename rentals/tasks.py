@@ -5,7 +5,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 
 from .cache_utils import bump_cache_version
-from .models import Lease
+from .models import Lease,LeaseRequest
 
 
 @shared_task
@@ -47,3 +47,37 @@ def close_expired_leases():
     if count:
         bump_cache_version()  # the property list changed, so drop the old cached lists
     return count
+
+
+@shared_task
+def send_request_status_email(request_id):
+    """
+    Email about a lease request:
+      * a NEW (pending) request  -> email goes to the property owner
+      * approved / rejected      -> email goes to the tenant
+    """
+    lease_request = LeaseRequest.objects.select_related("property__owner", "tenant").filter(id=request_id).first()
+    if lease_request is None:
+        return
+
+    rental = lease_request.property
+    if lease_request.status == "pending":
+        recipient = rental.owner.email
+        subject = "New lease request"
+        message = (
+            f"{lease_request.tenant.full_name} wants to rent '{rental.title}' "
+            f"from {lease_request.start_date} to {lease_request.end_date}.\n\n"
+            f"Message: {lease_request.message or '-'}\n\n"
+            f"Log in to approve or reject it."
+        )
+    else:
+        recipient = lease_request.tenant.email
+        subject = f"Your lease request was {lease_request.status}"
+        message = f"Your request to rent '{rental.title}' was {lease_request.status} by the owner."
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[recipient],
+    )

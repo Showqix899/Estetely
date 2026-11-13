@@ -34,7 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "email", "role"]  # these cannot be changed from the API
 
     def update(self, instance, validated_data):
-        """Update the user AND the nested profile (nested serializers need this by hand)."""
+        """Update the user AND the nested profile """
         profile_data = validated_data.pop("profile", {})
 
         # 1) update the user table

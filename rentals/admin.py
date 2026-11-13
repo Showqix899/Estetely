@@ -1,7 +1,7 @@
 """Show the rental tables in the Django admin (/admin/)."""
 from django.contrib import admin
 
-from .models import Amenity, Lease, Property
+from .models import Amenity, Lease, Property,LeaseRequest
 
 admin.site.register(Amenity)
 
@@ -15,3 +15,9 @@ class PropertyAdmin(admin.ModelAdmin):
 @admin.register(Lease)
 class LeaseAdmin(admin.ModelAdmin):
     list_display = ("property", "tenant", "start_date", "end_date", "is_active")
+
+
+@admin.register(LeaseRequest)
+class LeaseRequestAdmin(admin.ModelAdmin):
+    list_display = ("property", "tenant", "start_date", "end_date", "status")
+    list_filter = ("status",)

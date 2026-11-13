@@ -9,7 +9,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.serializers import UserSerializer
 
-from .models import Amenity, Lease, Property
+from .models import Amenity, Lease, Property,LeaseRequest
 
 
 class AmenitySerializer(serializers.ModelSerializer):
@@ -108,3 +108,41 @@ class LeaseSerializer(serializers.ModelSerializer):
         rental.is_available = False
         rental.save()
         return lease
+
+
+class LeaseRequestSerializer(serializers.ModelSerializer):
+    """
+    A tenant's request to rent a property.
+    To create one send  property_id, start_date, end_date and (optional) message.
+    status and lease are set by the system when the owner approves / rejects.
+    """
+
+    property = PropertyShortSerializer(read_only=True)  # nested, read only
+    tenant = UserSerializer(read_only=True)             # nested, read only
+    property_id = serializers.PrimaryKeyRelatedField(
+        queryset=Property.objects.all(), write_only=True, source="property"
+    )
+    lease = serializers.PrimaryKeyRelatedField(read_only=True)  # id of the lease created on approval
+
+    class Meta:
+        model = LeaseRequest
+        fields = [
+            "id", "property", "tenant", "property_id",
+            "start_date", "end_date", "message", "status", "lease", "created_at",
+        ]
+        read_only_fields = ["id", "status", "created_at"]
+
+    def validate_property_id(self, value):
+        """The property must be free, and the tenant must not already have a pending request for it."""
+        if not value.is_available:
+            raise serializers.ValidationError("This property is not available right now.")
+        tenant = self.context["request"].user
+        if LeaseRequest.objects.filter(property=value, tenant=tenant, status="pending").exists():
+            raise serializers.ValidationError("You already have a pending request for this property.")
+        return value
+
+    def validate(self, data):
+        """The end date must be after the start date."""
+        if data["end_date"] <= data["start_date"]:
+            raise serializers.ValidationError("end_date must be after start_date.")
+        return data

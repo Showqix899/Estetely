@@ -8,6 +8,11 @@ from .views import (
     MyPropertiesView,
     PropertyDetailView,
     PropertyListCreateView,
+    LeaseRequestApproveView,
+    LeaseRequestCancelView,
+    LeaseRequestDetailView,
+    LeaseRequestListCreateView,
+    LeaseRequestRejectView,
 )
 
 urlpatterns = [
@@ -18,4 +23,9 @@ urlpatterns = [
     path("leases/", LeaseListCreateView.as_view()),
     path("leases/<int:pk>/", LeaseDetailView.as_view()),
     path("leases/<int:pk>/end/", LeaseEndView.as_view()),
+    path("lease-requests/", LeaseRequestListCreateView.as_view()),
+    path("lease-requests/<int:pk>/", LeaseRequestDetailView.as_view()),
+    path("lease-requests/<int:pk>/approve/", LeaseRequestApproveView.as_view()),
+    path("lease-requests/<int:pk>/reject/", LeaseRequestRejectView.as_view()),
+    path("lease-requests/<int:pk>/cancel/", LeaseRequestCancelView.as_view()),
 ]
